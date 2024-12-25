@@ -8,20 +8,26 @@ class Drone
 public:
     Drone()
     {
-        this->anglePropeller = 0;
         this->position = glm::vec3(0, 0, 0);
+        this->propellerAngle = 0;
+        this->pitchAngle = 0;
+        this->rollAngle = 0;
     }
 
-    constexpr static double legLength = 3;
+    // Position of the origin
+    glm::vec3 position;
+
+    constexpr static double legLength = 2;
     constexpr static double legWidth = 0.1;
     constexpr static double propellerLength = 0.5;
     constexpr static double propellerWidth = 0.02;
     Mesh* body;
     Mesh* propeller;
 
-    float anglePropeller;
-    // Position of the origin
-    glm::vec3 position;
+    float propellerAngle;
+
+    float pitchAngle;
+    float rollAngle;
 };
 
 class Ground
