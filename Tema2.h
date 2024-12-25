@@ -9,6 +9,7 @@ public:
     Drone()
     {
         this->anglePropeller = 0;
+        this->position = glm::vec3(0, 0, 0);
     }
 
     constexpr static double legLength = 3;
@@ -19,6 +20,21 @@ public:
     Mesh* propeller;
 
     float anglePropeller;
+    // Position of the origin
+    glm::vec3 position;
+};
+
+class Ground
+{
+public:
+    Ground()
+    {
+    }
+
+    constexpr static int tileLength = 10;
+    constexpr static int tileWidth = 10;
+    constexpr static int nrTilesSide = 3;
+    Mesh* mesh;
 };
 
 namespace m1
@@ -63,6 +79,7 @@ namespace m1
         bool orthoProjection;
         float projectionFov, projectionWidth, projectionHeight;
 
+        Ground ground;
         Drone drone;
 
     };

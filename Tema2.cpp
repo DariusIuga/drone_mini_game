@@ -16,12 +16,14 @@ using namespace m1;
 
 Tema2::Tema2()
 {
+    Ground();
     Drone();
 }
 
 
 Tema2::~Tema2()
-{}
+{
+}
 
 
 void Tema2::Init()
@@ -34,6 +36,51 @@ void Tema2::Init()
 
     camera = new implemented::Camera();
     camera->Set(glm::vec3(0, 2, 3.5f), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
+
+    // Create ground mesh
+
+    vector<VertexFormat> groundVertices;
+    glm::vec3 groundColor = rgbToVec3(40,160,35);
+    vector<unsigned int> groundIndices;
+    for (int i = 0; i <= ground.nrTilesSide; i++)
+    {
+        for (int j = 0; j <= ground.nrTilesSide; j++)
+        {
+            groundVertices.push_back(
+                VertexFormat(glm::vec3(ground.tileLength * i, 0,
+                                       ground.tileWidth * j),
+                             groundColor));
+        }
+    }
+
+    // Add indices for tile triangles
+
+    for (int i = 0; i < ground.nrTilesSide; i++)
+    {
+        for (int j = 0; j < ground.nrTilesSide; j++)
+        {
+            int topLeft = i * (ground.nrTilesSide + 1) + j;
+            int topRight = topLeft + 1;
+            int bottomLeft = topLeft + ground.nrTilesSide + 1;
+            int bottomRight = bottomLeft + 1;
+
+            // First triangle
+            groundIndices.push_back(topLeft);
+            groundIndices.push_back(bottomLeft);
+            groundIndices.push_back(topRight);
+
+            // Second triangle
+            groundIndices.push_back(topRight);
+            groundIndices.push_back(bottomLeft);
+            groundIndices.push_back(bottomRight);
+        }
+    }
+
+    ground.mesh = new Mesh("ground");
+    ground.mesh->SetDrawMode(GL_TRIANGLES);
+    ground.mesh->InitFromData(groundVertices, groundIndices);
+    meshes[ground.mesh->GetMeshID()] = ground.mesh;
+
 
     // Create a mesh for the drone body and one for the propeller
 
@@ -68,44 +115,74 @@ void Tema2::Init()
         VertexFormat(glm::vec3(-halfWidth, halfWidth, halfLength), bodyColor),
 
         // +X arm top cube (vertices [48..55])
-        VertexFormat(glm::vec3(halfLength - 2 * halfWidth, halfWidth, -halfWidth), bodyColor),
+        VertexFormat(
+            glm::vec3(halfLength - 2 * halfWidth, halfWidth, -halfWidth),
+            bodyColor),
         VertexFormat(glm::vec3(halfLength, halfWidth, -halfWidth), bodyColor),
         VertexFormat(glm::vec3(halfLength, halfWidth, halfWidth), bodyColor),
-        VertexFormat(glm::vec3(halfLength - 2 * halfWidth, halfWidth, halfWidth), bodyColor),
-        VertexFormat(glm::vec3(halfLength - 2 * halfWidth, 3 * halfWidth, -halfWidth), bodyColor),
-        VertexFormat(glm::vec3(halfLength, 3 * halfWidth, -halfWidth), bodyColor),
-        VertexFormat(glm::vec3(halfLength, 3 * halfWidth, halfWidth), bodyColor),
-        VertexFormat(glm::vec3(halfLength - 2 * halfWidth, 3 * halfWidth, halfWidth), bodyColor),
+        VertexFormat(
+            glm::vec3(halfLength - 2 * halfWidth, halfWidth, halfWidth),
+            bodyColor),
+        VertexFormat(glm::vec3(halfLength - 2 * halfWidth, 3 * halfWidth,
+                               -halfWidth), bodyColor),
+        VertexFormat(glm::vec3(halfLength, 3 * halfWidth, -halfWidth),
+                     bodyColor),
+        VertexFormat(glm::vec3(halfLength, 3 * halfWidth, halfWidth),
+                     bodyColor),
+        VertexFormat(glm::vec3(halfLength - 2 * halfWidth, 3 * halfWidth,
+                               halfWidth), bodyColor),
 
         // -X arm top cube (vertices [56..63])
-        VertexFormat(glm::vec3(-(halfLength - 2 * halfWidth), halfWidth, -halfWidth), bodyColor),
+        VertexFormat(glm::vec3(-(halfLength - 2 * halfWidth), halfWidth,
+                               -halfWidth), bodyColor),
         VertexFormat(glm::vec3(-halfLength, halfWidth, -halfWidth), bodyColor),
         VertexFormat(glm::vec3(-halfLength, halfWidth, halfWidth), bodyColor),
-        VertexFormat(glm::vec3(-(halfLength - 2 * halfWidth), halfWidth, halfWidth), bodyColor),
-        VertexFormat(glm::vec3(-(halfLength - 2 * halfWidth), 3 * halfWidth, -halfWidth), bodyColor),
-        VertexFormat(glm::vec3(-halfLength, 3 * halfWidth, -halfWidth), bodyColor),
-        VertexFormat(glm::vec3(-halfLength, 3 * halfWidth, halfWidth), bodyColor),
-        VertexFormat(glm::vec3(-(halfLength - 2 * halfWidth), 3 * halfWidth, halfWidth), bodyColor),
+        VertexFormat(
+            glm::vec3(-(halfLength - 2 * halfWidth), halfWidth, halfWidth),
+            bodyColor),
+        VertexFormat(glm::vec3(-(halfLength - 2 * halfWidth), 3 * halfWidth,
+                               -halfWidth), bodyColor),
+        VertexFormat(glm::vec3(-halfLength, 3 * halfWidth, -halfWidth),
+                     bodyColor),
+        VertexFormat(glm::vec3(-halfLength, 3 * halfWidth, halfWidth),
+                     bodyColor),
+        VertexFormat(glm::vec3(-(halfLength - 2 * halfWidth), 3 * halfWidth,
+                               halfWidth), bodyColor),
 
         // +Z arm top cube (vertices [64..71])
-        VertexFormat(glm::vec3(-halfWidth, halfWidth, halfLength - 2 * halfWidth), bodyColor),
-        VertexFormat(glm::vec3(halfWidth, halfWidth, halfLength - 2 * halfWidth), bodyColor),
+        VertexFormat(
+            glm::vec3(-halfWidth, halfWidth, halfLength - 2 * halfWidth),
+            bodyColor),
+        VertexFormat(
+            glm::vec3(halfWidth, halfWidth, halfLength - 2 * halfWidth),
+            bodyColor),
         VertexFormat(glm::vec3(halfWidth, halfWidth, halfLength), bodyColor),
         VertexFormat(glm::vec3(-halfWidth, halfWidth, halfLength), bodyColor),
-        VertexFormat(glm::vec3(-halfWidth, 3 * halfWidth, halfLength - 2 * halfWidth), bodyColor),
-        VertexFormat(glm::vec3(halfWidth, 3 * halfWidth, halfLength - 2 * halfWidth), bodyColor),
-        VertexFormat(glm::vec3(halfWidth, 3 * halfWidth, halfLength), bodyColor),
-        VertexFormat(glm::vec3(-halfWidth, 3 * halfWidth, halfLength), bodyColor),
+        VertexFormat(glm::vec3(-halfWidth, 3 * halfWidth,
+                               halfLength - 2 * halfWidth), bodyColor),
+        VertexFormat(glm::vec3(halfWidth, 3 * halfWidth,
+                               halfLength - 2 * halfWidth), bodyColor),
+        VertexFormat(glm::vec3(halfWidth, 3 * halfWidth, halfLength),
+                     bodyColor),
+        VertexFormat(glm::vec3(-halfWidth, 3 * halfWidth, halfLength),
+                     bodyColor),
 
         // -Z arm top cube (vertices [72..79])
-        VertexFormat(glm::vec3(-halfWidth, halfWidth, -(halfLength - 2 * halfWidth)), bodyColor),
-        VertexFormat(glm::vec3(halfWidth, halfWidth, -(halfLength - 2 * halfWidth)), bodyColor),
+        VertexFormat(glm::vec3(-halfWidth, halfWidth,
+                               -(halfLength - 2 * halfWidth)), bodyColor),
+        VertexFormat(
+            glm::vec3(halfWidth, halfWidth, -(halfLength - 2 * halfWidth)),
+            bodyColor),
         VertexFormat(glm::vec3(halfWidth, halfWidth, -halfLength), bodyColor),
         VertexFormat(glm::vec3(-halfWidth, halfWidth, -halfLength), bodyColor),
-        VertexFormat(glm::vec3(-halfWidth, 3 * halfWidth, -(halfLength - 2 * halfWidth)), bodyColor),
-        VertexFormat(glm::vec3(halfWidth, 3 * halfWidth, -(halfLength - 2 * halfWidth)), bodyColor),
-        VertexFormat(glm::vec3(halfWidth, 3 * halfWidth, -halfLength), bodyColor),
-        VertexFormat(glm::vec3(-halfWidth, 3 * halfWidth, -halfLength), bodyColor)
+        VertexFormat(glm::vec3(-halfWidth, 3 * halfWidth,
+                               -(halfLength - 2 * halfWidth)), bodyColor),
+        VertexFormat(glm::vec3(halfWidth, 3 * halfWidth,
+                               -(halfLength - 2 * halfWidth)), bodyColor),
+        VertexFormat(glm::vec3(halfWidth, 3 * halfWidth, -halfLength),
+                     bodyColor),
+        VertexFormat(glm::vec3(-halfWidth, 3 * halfWidth, -halfLength),
+                     bodyColor)
     };
 
     // Indices for the body
@@ -192,10 +269,14 @@ void Tema2::Init()
             VertexFormat(glm::vec3(halfWidth, 0, -halfLength), propellerColor),
             VertexFormat(glm::vec3(halfWidth, 0, halfLength), propellerColor),
             VertexFormat(glm::vec3(-halfWidth, 0, halfLength), propellerColor),
-            VertexFormat(glm::vec3(-halfWidth, halfWidth, -halfLength), propellerColor),
-            VertexFormat(glm::vec3(halfWidth, halfWidth, -halfLength), propellerColor),
-            VertexFormat(glm::vec3(halfWidth, halfWidth, halfLength), propellerColor),
-            VertexFormat(glm::vec3(-halfWidth, halfWidth, halfLength), propellerColor)
+            VertexFormat(glm::vec3(-halfWidth, halfWidth, -halfLength),
+                         propellerColor),
+            VertexFormat(glm::vec3(halfWidth, halfWidth, -halfLength),
+                         propellerColor),
+            VertexFormat(glm::vec3(halfWidth, halfWidth, halfLength),
+                         propellerColor),
+            VertexFormat(glm::vec3(-halfWidth, halfWidth, halfLength),
+                         propellerColor)
         };
 
         vector<unsigned int> propellerIndices = {
@@ -216,14 +297,14 @@ void Tema2::Init()
     {
         Mesh* mesh = new Mesh("box");
         mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS,
-            "primitives"), "box.obj");
+                                 "primitives"), "box.obj");
         meshes[mesh->GetMeshID()] = mesh;
     }
 
     {
         Mesh* mesh = new Mesh("sphere");
         mesh->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS,
-            "primitives"), "sphere.obj");
+                                 "primitives"), "sphere.obj");
         meshes[mesh->GetMeshID()] = mesh;
     }
 }
@@ -232,13 +313,13 @@ void Tema2::Init()
 void Tema2::FrameStart()
 {
     projectionMatrix = orthoProjection
-        ? glm::ortho(-projectionWidth / 2,
-            projectionWidth / 2,
-            -projectionHeight / 2,
-            projectionHeight / 2, .01f, 200.0f)
-        : glm::perspective(
-            RADIANS(projectionFov),
-            window->props.aspectRatio, 0.01f, 200.0f);
+                           ? glm::ortho(-projectionWidth / 2,
+                                        projectionWidth / 2,
+                                        -projectionHeight / 2,
+                                        projectionHeight / 2, .01f, 200.0f)
+                           : glm::perspective(
+                               RADIANS(projectionFov),
+                               window->props.aspectRatio, 0.01f, 200.0f);
     // Clears the color buffer (using the previously set color) and depth buffer
 
     // Sky color
@@ -259,44 +340,75 @@ void Tema2::Update(float deltaTimeSeconds)
     // `RenderMesh()` that we've been using up until now. This new
     // function uses the view matrix from the camera that you just
     // implemented, and the local projection matrix.
+
     {
-        glm::mat4 modelMatrix = glm::mat4(1);
-        RenderMesh(meshes["body"], shaders["VertexColor"], modelMatrix);
+        glm::mat4 groundModelMatrix = glm::mat4(1);
+        // Move the ground's center to (0, 0, 0)
+        groundModelMatrix = glm::translate(groundModelMatrix,
+                                           glm::vec3(-ground.tileLength *
+                                                         ground.nrTilesSide / 2,
+                                                     0,
+                                                     -ground.tileWidth *
+                                                         ground.nrTilesSide / 2));
+        RenderMesh(meshes["ground"], shaders["VertexColor"], groundModelMatrix);
+    }
+
+    glm::mat4 droneModelMatrix = glm::mat4(1);
+    droneModelMatrix = glm::translate(droneModelMatrix, drone.position);
+
+    {
+        RenderMesh(meshes["body"], shaders["VertexColor"], droneModelMatrix);
     }
 
     // Update the angle of the propellers
-    drone.anglePropeller += deltaTimeSeconds * 2 * M_PI;
+    drone.anglePropeller += deltaTimeSeconds * 20;
 
     // Draw a propeller on top of each arm
     // For arm +X
     {
-        glm::mat4 modelMatrix = glm::mat4(1);
-        modelMatrix = glm::translate(modelMatrix, glm::vec3((Drone::legLength - Drone::legWidth), 3 * Drone::legWidth, 0));
-        modelMatrix = glm::rotate(modelMatrix, drone.anglePropeller, glm::vec3(0, 1, 0));
+        glm::mat4 modelMatrix = droneModelMatrix;
+        modelMatrix = glm::translate(modelMatrix,
+                                     glm::vec3(
+                                         (Drone::legLength - Drone::legWidth),
+                                         3 * Drone::legWidth, 0));
+        modelMatrix = glm::rotate(modelMatrix, drone.anglePropeller,
+                                  glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
     }
 
     // For arm -X
     {
-        glm::mat4 modelMatrix = glm::mat4(1);
-        modelMatrix = glm::translate(modelMatrix, glm::vec3(-(Drone::legLength - Drone::legWidth), 3 * Drone::legWidth, 0));
-        modelMatrix = glm::rotate(modelMatrix, drone.anglePropeller, glm::vec3(0, 1, 0));
+        glm::mat4 modelMatrix = droneModelMatrix;
+        modelMatrix = glm::translate(modelMatrix,
+                                     glm::vec3(
+                                         -(Drone::legLength - Drone::legWidth),
+                                         3 * Drone::legWidth, 0));
+        modelMatrix = glm::rotate(modelMatrix, drone.anglePropeller,
+                                  glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
     }
 
     // For arm +Z
     {
-        glm::mat4 modelMatrix = glm::mat4(1);
-        modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 3 * Drone::legWidth, (Drone::legLength - Drone::legWidth)));
-        modelMatrix = glm::rotate(modelMatrix, drone.anglePropeller, glm::vec3(0, 1, 0));
+        glm::mat4 modelMatrix = droneModelMatrix;
+        modelMatrix = glm::translate(modelMatrix,
+                                     glm::vec3(0, 3 * Drone::legWidth,
+                                               (Drone::legLength -
+                                                   Drone::legWidth)));
+        modelMatrix = glm::rotate(modelMatrix, drone.anglePropeller,
+                                  glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
     }
 
     // For arm -Z
     {
-        glm::mat4 modelMatrix = glm::mat4(1);
-        modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 3 * Drone::legWidth, -(Drone::legLength - Drone::legWidth)));
-        modelMatrix = glm::rotate(modelMatrix, drone.anglePropeller, glm::vec3(0, 1, 0));
+        glm::mat4 modelMatrix = droneModelMatrix;
+        modelMatrix = glm::translate(modelMatrix,
+                                     glm::vec3(0, 3 * Drone::legWidth,
+                                               -(Drone::legLength -
+                                                   Drone::legWidth)));
+        modelMatrix = glm::rotate(modelMatrix, drone.anglePropeller,
+                                  glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
     }
 
@@ -326,11 +438,11 @@ void Tema2::RenderMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatrix)
     // Render an object using the specified shader and the specified position
     shader->Use();
     glUniformMatrix4fv(shader->loc_view_matrix, 1, GL_FALSE,
-        glm::value_ptr(camera->GetViewMatrix()));
+                       glm::value_ptr(camera->GetViewMatrix()));
     glUniformMatrix4fv(shader->loc_projection_matrix, 1, GL_FALSE,
-        glm::value_ptr(projectionMatrix));
+                       glm::value_ptr(projectionMatrix));
     glUniformMatrix4fv(shader->loc_model_matrix, 1, GL_FALSE,
-        glm::value_ptr(modelMatrix));
+                       glm::value_ptr(modelMatrix));
 
     mesh->Render();
 }
@@ -377,6 +489,35 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
         if (window->KeyHold(GLFW_KEY_E))
         {
             camera->TranslateUpward(deltaTime * cameraSpeed);
+        }
+    }
+    else
+    {
+        // Move the drone
+
+        if (window->KeyHold(GLFW_KEY_W))
+        {
+            drone.position.z -= deltaTime;
+        }
+        if (window->KeyHold(GLFW_KEY_S))
+        {
+            drone.position.z += deltaTime;
+        }
+        if (window->KeyHold(GLFW_KEY_A))
+        {
+            drone.position.x -= deltaTime;
+        }
+        if (window->KeyHold(GLFW_KEY_D))
+        {
+            drone.position.x += deltaTime;
+        }
+        if (window->KeyHold(GLFW_KEY_E))
+        {
+            drone.position.y += deltaTime;
+        }
+        if (window->KeyHold(GLFW_KEY_Q))
+        {
+            drone.position.y -= deltaTime;
         }
     }
 
@@ -478,8 +619,10 @@ void Tema2::OnMouseBtnRelease(int mouseX, int mouseY, int button, int mods)
 
 
 void Tema2::OnMouseScroll(int mouseX, int mouseY, int offsetX, int offsetY)
-{}
+{
+}
 
 
 void Tema2::OnWindowResize(int width, int height)
-{}
+{
+}
