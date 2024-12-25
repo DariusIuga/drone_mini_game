@@ -344,9 +344,10 @@ void Tema2::Update(float deltaTimeSeconds)
     // The roll, pitch and yaw angles should get closer to 0 on every frame
     // (the drone should stabilize itself).
 
-    float stabilizationSpeed = 5.0f;
+    float stabilizationSpeed = 4.0f;
     drone.rollAngle = glm::mix(drone.rollAngle, 0.0f, stabilizationSpeed * deltaTimeSeconds);
     drone.pitchAngle = glm::mix(drone.pitchAngle, 0.0f, stabilizationSpeed * deltaTimeSeconds);
+    drone.yawAngle = glm::mix(drone.yawAngle, 0.0f, stabilizationSpeed * deltaTimeSeconds);
 
     {
         glm::mat4 groundModelMatrix = glm::mat4(1);
@@ -366,13 +367,16 @@ void Tema2::Update(float deltaTimeSeconds)
         glm::vec3(0, 0, 1));
     droneModelMatrix = glm::rotate(droneModelMatrix, drone.pitchAngle,
         glm::vec3(1, 0, 0));
+    droneModelMatrix = glm::rotate(droneModelMatrix, drone.yawAngle,
+        glm::vec3(0, 1, 0));
 
     {
         RenderMesh(meshes["body"], shaders["VertexColor"], droneModelMatrix);
     }
 
     // Update the angle of the propellers
-    drone.propellerAngle += deltaTimeSeconds * 20;
+    constexpr double propellerSpeed = 120;
+    drone.propellerAngle += deltaTimeSeconds * propellerSpeed;
 
     // Draw a propeller on top of each arm
     // For arm +X
@@ -511,12 +515,12 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
         if (window->KeyHold(GLFW_KEY_W))
         {
             drone.position.z -= deltaTime * speed;
-            drone.pitchAngle += deltaTime * speed;
+            drone.pitchAngle -= deltaTime * speed;
         }
         if (window->KeyHold(GLFW_KEY_S))
         {
             drone.position.z += deltaTime * speed;
-            drone.pitchAngle -= deltaTime * speed;
+            drone.pitchAngle += deltaTime * speed;
         }
         if (window->KeyHold(GLFW_KEY_A))
         {
@@ -535,6 +539,15 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
         if (window->KeyHold(GLFW_KEY_Q))
         {
             drone.position.y -= deltaTime * speed;
+        }
+        // Just change direction/yaw
+        if (window->KeyHold(GLFW_KEY_Z))
+        {
+            drone.yawAngle += deltaTime * speed;
+        }
+        if (window->KeyHold(GLFW_KEY_X))
+        {
+            drone.yawAngle -= deltaTime * speed;
         }
     }
 

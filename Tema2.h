@@ -12,6 +12,7 @@ public:
         this->propellerAngle = 0;
         this->pitchAngle = 0;
         this->rollAngle = 0;
+        this->yawAngle = 0;
     }
 
     // Position of the origin
@@ -19,7 +20,7 @@ public:
 
     constexpr static double legLength = 2;
     constexpr static double legWidth = 0.1;
-    constexpr static double propellerLength = 0.5;
+    constexpr static double propellerLength = 1;
     constexpr static double propellerWidth = 0.02;
     Mesh* body;
     Mesh* propeller;
@@ -28,6 +29,7 @@ public:
 
     float pitchAngle;
     float rollAngle;
+    float yawAngle;
 };
 
 class Ground
