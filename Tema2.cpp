@@ -23,8 +23,7 @@ Tema2::Tema2()
 
 
 Tema2::~Tema2()
-{
-}
+{}
 
 // Create a cylinder with the specified radius and height
 Mesh* createCylinder(float radius, float height, glm::vec3 color)
@@ -139,6 +138,37 @@ Mesh* createCone(float radius, float height, glm::vec3 color)
     return mesh;
 }
 
+// Function to check intersection between drone's bounding sphere and an AABB
+bool intersect(const Drone& drone, const AABB& box)
+{
+    float x = glm::clamp(drone.position.x, box.min.x, box.max.x);
+    float y = glm::clamp(drone.position.y, box.min.y, box.max.y);
+    float z = glm::clamp(drone.position.z, box.min.z, box.max.z);
+
+    float distanceSquared = (x - drone.position.x) * (x - drone.position.x) +
+        (y - drone.position.y) * (y - drone.position.y) +
+        (z - drone.position.z) * (z - drone.position.z);
+
+    return distanceSquared < (drone.boundingSphereRadius * drone.boundingSphereRadius);
+}
+
+// Function that makes sure that the drone doesn't collide with any tree
+void checkCollisions(Drone& drone, Tree* trees, int nr_trees)
+{
+    for (int i = 0; i < nr_trees; i++)
+    {
+        if (intersect(drone, trees[i].boundingBox))
+        {
+            std:: cout << "Drone collided with tree " << i << std::endl;
+            // Move the drone away from the tree
+            glm::vec3 dir = glm::normalize(drone.position - trees[i].position);
+            drone.position += dir * 0.1f;
+        }
+    }
+}
+
+
+
 
 void Tema2::Init()
 {
@@ -162,8 +192,8 @@ void Tema2::Init()
         {
             groundVertices.push_back(
                 VertexFormat(glm::vec3(ground.tileLength * i, 0,
-                                       ground.tileWidth * j),
-                             groundColor));
+                    ground.tileWidth * j),
+                    groundColor));
         }
     }
 
@@ -415,11 +445,11 @@ void Tema2::Init()
         float trunkHeight = Tree::trunkHeight;
         glm::vec3 crownColor = rgbToVec3(9, 74, 7);
 
-        tree.trunk = createCylinder(tree.trunkRadius, tree.trunkHeight,
-                                    trunkColor);
-        meshes["trunk"] = tree.trunk;
-        tree.cone = createCone(tree.coneRadius, tree.coneHeight, crownColor);
-        meshes["cone"] = tree.cone;
+        ground.trunk = createCylinder(tree.trunkRadius, tree.trunkHeight,
+            trunkColor);
+        meshes["trunk"] = ground.trunk;
+        ground.cone = createCone(tree.coneRadius, tree.coneHeight, crownColor);
+        meshes["cone"] = ground.cone;
     }
 }
 
@@ -427,13 +457,13 @@ void Tema2::Init()
 void Tema2::FrameStart()
 {
     projectionMatrix = orthoProjection
-                           ? glm::ortho(-projectionWidth / 2,
-                                        projectionWidth / 2,
-                                        -projectionHeight / 2,
-                                        projectionHeight / 2, .01f, 200.0f)
-                           : glm::perspective(
-                               RADIANS(projectionFov),
-                               window->props.aspectRatio, 0.01f, 200.0f);
+        ? glm::ortho(-projectionWidth / 2,
+            projectionWidth / 2,
+            -projectionHeight / 2,
+            projectionHeight / 2, .01f, 200.0f)
+        : glm::perspective(
+            RADIANS(projectionFov),
+            window->props.aspectRatio, 0.01f, 200.0f);
     // Clears the color buffer (using the previously set color) and depth buffer
 
     // Sky color
@@ -459,35 +489,37 @@ void Tema2::Update(float deltaTimeSeconds)
     // (the drone should stabilize itself).
 
     checkOutOfBounds();
+    checkCollisions(drone, ground.trees, ground.nr_trees);
 
-    float stabilizationSpeed = 5.0f;
+
+    float stabilizationSpeed = 4.0f;
     drone.rollAngle = glm::mix(drone.rollAngle, 0.0f,
-                               stabilizationSpeed * deltaTimeSeconds);
+        stabilizationSpeed * deltaTimeSeconds);
     drone.pitchAngle = glm::mix(drone.pitchAngle, 0.0f,
-                                stabilizationSpeed * deltaTimeSeconds);
+        stabilizationSpeed * deltaTimeSeconds);
     drone.yawAngle = glm::mix(drone.yawAngle, 0.0f,
-                              stabilizationSpeed * deltaTimeSeconds);
+        stabilizationSpeed * deltaTimeSeconds);
 
     {
         glm::mat4 groundModelMatrix = glm::mat4(1);
         // Move the ground's center to (0, 0, 0)
         groundModelMatrix = glm::translate(groundModelMatrix,
-                                           glm::vec3(-ground.tileLength *
-                                               ground.nrTilesSide / 2,
-                                               0,
-                                               -ground.tileWidth *
-                                               ground.nrTilesSide / 2));
+            glm::vec3(-ground.tileLength *
+                ground.nrTilesSide / 2,
+                0,
+                -ground.tileWidth *
+                ground.nrTilesSide / 2));
         RenderMesh(meshes["ground"], shaders["VertexColor"], groundModelMatrix);
     }
 
     glm::mat4 droneModelMatrix = glm::mat4(1);
     droneModelMatrix = glm::translate(droneModelMatrix, drone.position);
     droneModelMatrix = glm::rotate(droneModelMatrix, drone.rollAngle,
-                                   glm::vec3(0, 0, 1));
+        glm::vec3(0, 0, 1));
     droneModelMatrix = glm::rotate(droneModelMatrix, drone.pitchAngle,
-                                   glm::vec3(1, 0, 0));
+        glm::vec3(1, 0, 0));
     droneModelMatrix = glm::rotate(droneModelMatrix, drone.yawAngle,
-                                   glm::vec3(0, 1, 0));
+        glm::vec3(0, 1, 0));
 
     {
         RenderMesh(meshes["body"], shaders["VertexColor"], droneModelMatrix);
@@ -502,11 +534,11 @@ void Tema2::Update(float deltaTimeSeconds)
     {
         glm::mat4 modelMatrix = droneModelMatrix;
         modelMatrix = glm::translate(modelMatrix,
-                                     glm::vec3(
-                                         (Drone::legLength - Drone::legWidth),
-                                         3 * Drone::legWidth, 0));
+            glm::vec3(
+                (Drone::legLength - Drone::legWidth),
+                3 * Drone::legWidth, 0));
         modelMatrix = glm::rotate(modelMatrix, drone.propellerAngle,
-                                  glm::vec3(0, 1, 0));
+            glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
     }
 
@@ -514,11 +546,11 @@ void Tema2::Update(float deltaTimeSeconds)
     {
         glm::mat4 modelMatrix = droneModelMatrix;
         modelMatrix = glm::translate(modelMatrix,
-                                     glm::vec3(
-                                         -(Drone::legLength - Drone::legWidth),
-                                         3 * Drone::legWidth, 0));
+            glm::vec3(
+                -(Drone::legLength - Drone::legWidth),
+                3 * Drone::legWidth, 0));
         modelMatrix = glm::rotate(modelMatrix, drone.propellerAngle,
-                                  glm::vec3(0, 1, 0));
+            glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
     }
 
@@ -526,11 +558,11 @@ void Tema2::Update(float deltaTimeSeconds)
     {
         glm::mat4 modelMatrix = droneModelMatrix;
         modelMatrix = glm::translate(modelMatrix,
-                                     glm::vec3(0, 3 * Drone::legWidth,
-                                               (Drone::legLength -
-                                                   Drone::legWidth)));
+            glm::vec3(0, 3 * Drone::legWidth,
+                (Drone::legLength -
+                    Drone::legWidth)));
         modelMatrix = glm::rotate(modelMatrix, drone.propellerAngle,
-                                  glm::vec3(0, 1, 0));
+            glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
     }
 
@@ -538,11 +570,11 @@ void Tema2::Update(float deltaTimeSeconds)
     {
         glm::mat4 modelMatrix = droneModelMatrix;
         modelMatrix = glm::translate(modelMatrix,
-                                     glm::vec3(0, 3 * Drone::legWidth,
-                                               -(Drone::legLength -
-                                                   Drone::legWidth)));
+            glm::vec3(0, 3 * Drone::legWidth,
+                -(Drone::legLength -
+                    Drone::legWidth)));
         modelMatrix = glm::rotate(modelMatrix, drone.propellerAngle,
-                                  glm::vec3(0, 1, 0));
+            glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
     }
 
@@ -559,15 +591,15 @@ void Tema2::Update(float deltaTimeSeconds)
     // Draw trees using the saved model matrices
     for (int i = 0; i < ground.nr_trees; i++)
     {
-        glm::mat4 currentModelMatrix = ground.treeModelMatrices[i];
+        glm::mat4 currentModelMatrix = ground.trees[i].modelMatrix;
         // Draw the shapes that make up the tree
         RenderMesh(meshes["trunk"], shaders["VertexColor"], currentModelMatrix);
         currentModelMatrix = glm::translate(currentModelMatrix,
-                                            glm::vec3(0, Tree::trunkHeight, 0));
+            glm::vec3(0, Tree::trunkHeight, 0));
         RenderMesh(meshes["cone"], shaders["VertexColor"], currentModelMatrix);
         currentModelMatrix = glm::translate(currentModelMatrix,
-                                            glm::vec3(
-                                                0, Tree::coneHeight / 3, 0));
+            glm::vec3(
+                0, Tree::coneHeight / 3, 0));
         RenderMesh(meshes["cone"], shaders["VertexColor"], currentModelMatrix);
     }
 }
@@ -587,11 +619,11 @@ void Tema2::RenderMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatrix)
     // Render an object using the specified shader and the specified position
     shader->Use();
     glUniformMatrix4fv(shader->loc_view_matrix, 1, GL_FALSE,
-                       glm::value_ptr(camera->GetViewMatrix()));
+        glm::value_ptr(camera->GetViewMatrix()));
     glUniformMatrix4fv(shader->loc_projection_matrix, 1, GL_FALSE,
-                       glm::value_ptr(projectionMatrix));
+        glm::value_ptr(projectionMatrix));
     glUniformMatrix4fv(shader->loc_model_matrix, 1, GL_FALSE,
-                       glm::value_ptr(modelMatrix));
+        glm::value_ptr(modelMatrix));
 
     mesh->Render();
 }
@@ -783,10 +815,8 @@ void Tema2::OnMouseBtnRelease(int mouseX, int mouseY, int button, int mods)
 
 
 void Tema2::OnMouseScroll(int mouseX, int mouseY, int offsetX, int offsetY)
-{
-}
+{}
 
 
 void Tema2::OnWindowResize(int width, int height)
-{
-}
+{}
