@@ -458,6 +458,8 @@ void Tema2::Update(float deltaTimeSeconds)
     // The roll, pitch and yaw angles should get closer to 0 on every frame
     // (the drone should stabilize itself).
 
+    checkOutOfBounds();
+
     float stabilizationSpeed = 5.0f;
     drone.rollAngle = glm::mix(drone.rollAngle, 0.0f,
                                stabilizationSpeed * deltaTimeSeconds);

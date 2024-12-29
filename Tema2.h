@@ -139,6 +139,41 @@ namespace m1
             return {r / 256.0, g / 256.0, b / 256.0};
         }
 
+        // Make sure that the drone stays above the ground and doesn't go
+        // outside the bounds of the ground
+        void checkOutOfBounds()
+        {
+            // Don't let the drone go outside the ground
+            if (drone.position.y < 0)
+            {
+                drone.position.y = 0;
+            }
+
+            // Put invisible walls around the limits of the ground
+            if (drone.position.x < -ground.tileLength * ground.nrTilesSide / 2)
+            {
+                drone.position.x = -ground.tileLength * ground.nrTilesSide / 2;
+            }
+            if (drone.position.x > ground.tileLength * ground.nrTilesSide / 2)
+            {
+                drone.position.x = ground.tileLength * ground.nrTilesSide / 2;
+            }
+            if (drone.position.z < -ground.tileWidth * ground.nrTilesSide / 2)
+            {
+                drone.position.z = -ground.tileWidth * ground.nrTilesSide / 2;
+            }
+            if (drone.position.z > ground.tileWidth * ground.nrTilesSide / 2)
+            {
+                drone.position.z = ground.tileWidth * ground.nrTilesSide / 2;
+            }
+
+            // Put an invisible ceiling for good measure
+            if (drone.position.y > 20)
+            {
+                drone.position.y = 20;
+            }
+        }
+
     protected:
         implemented::Camera* camera;
         glm::mat4 projectionMatrix;
