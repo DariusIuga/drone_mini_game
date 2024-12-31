@@ -23,7 +23,8 @@ Tema2::Tema2()
 
 
 Tema2::~Tema2()
-{}
+{
+}
 
 // Create a cylinder with the specified radius and height
 Mesh* createCylinder(float radius, float height, glm::vec3 color)
@@ -149,7 +150,8 @@ bool intersect(const Drone& drone, const AABB& box)
         (y - drone.position.y) * (y - drone.position.y) +
         (z - drone.position.z) * (z - drone.position.z);
 
-    return distanceSquared < (drone.boundingSphereRadius * drone.boundingSphereRadius);
+    return distanceSquared < (drone.boundingSphereRadius * drone.
+        boundingSphereRadius);
 }
 
 // Function that makes sure that the drone doesn't collide with any tree
@@ -159,15 +161,12 @@ void checkCollisions(Drone& drone, Tree* trees, int nr_trees)
     {
         if (intersect(drone, trees[i].boundingBox))
         {
-            std:: cout << "Drone collided with tree " << i << std::endl;
             // Move the drone away from the tree
             glm::vec3 dir = glm::normalize(drone.position - trees[i].position);
             drone.position += dir * 0.1f;
         }
     }
 }
-
-
 
 
 void Tema2::Init()
@@ -192,8 +191,8 @@ void Tema2::Init()
         {
             groundVertices.push_back(
                 VertexFormat(glm::vec3(ground.tileLength * i, 0,
-                    ground.tileWidth * j),
-                    groundColor));
+                                       ground.tileWidth * j),
+                             groundColor));
         }
     }
 
@@ -224,7 +223,6 @@ void Tema2::Init()
     ground.mesh->SetDrawMode(GL_TRIANGLES);
     ground.mesh->InitFromData(groundVertices, groundIndices);
     meshes[ground.mesh->GetMeshID()] = ground.mesh;
-
 
     // Create a mesh for the drone body and one for the propeller
 
@@ -446,24 +444,39 @@ void Tema2::Init()
         glm::vec3 crownColor = rgbToVec3(9, 74, 7);
 
         ground.trunk = createCylinder(tree.trunkRadius, tree.trunkHeight,
-            trunkColor);
+                                      trunkColor);
         meshes["trunk"] = ground.trunk;
         ground.cone = createCone(tree.coneRadius, tree.coneHeight, crownColor);
         meshes["cone"] = ground.cone;
     }
+
+    // // Load the terrain shaders
+    // {
+    //     Shader* terrainShader = new Shader("Terrain");
+    //     terrainShader->AddShader(
+    //         PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "Tema2",
+    //             "shaders", "VertexShader.glsl"), GL_VERTEX_SHADER);
+    //     terrainShader->AddShader(
+    //         PATH_JOIN(window->props.selfDir, SOURCE_PATH::M1, "Tema2",
+    //             "shaders", "FragmentShader.glsl"), GL_FRAGMENT_SHADER);
+    //     terrainShader->CreateAndLink();
+    //     shaders[terrainShader->GetName()] = terrainShader;
+    // }
+
+    cameraMode = THIRD_PERSON; // Set initial camera mode
 }
 
 
 void Tema2::FrameStart()
 {
     projectionMatrix = orthoProjection
-        ? glm::ortho(-projectionWidth / 2,
-            projectionWidth / 2,
-            -projectionHeight / 2,
-            projectionHeight / 2, .01f, 200.0f)
-        : glm::perspective(
-            RADIANS(projectionFov),
-            window->props.aspectRatio, 0.01f, 200.0f);
+                           ? glm::ortho(-projectionWidth / 2,
+                                        projectionWidth / 2,
+                                        -projectionHeight / 2,
+                                        projectionHeight / 2, .01f, 200.0f)
+                           : glm::perspective(
+                               RADIANS(projectionFov),
+                               window->props.aspectRatio, 0.01f, 200.0f);
     // Clears the color buffer (using the previously set color) and depth buffer
 
     // Sky color
@@ -492,34 +505,57 @@ void Tema2::Update(float deltaTimeSeconds)
     checkCollisions(drone, ground.trees, ground.nr_trees);
 
 
-    float stabilizationSpeed = 4.0f;
-    drone.rollAngle = glm::mix(drone.rollAngle, 0.0f,
-        stabilizationSpeed * deltaTimeSeconds);
-    drone.pitchAngle = glm::mix(drone.pitchAngle, 0.0f,
-        stabilizationSpeed * deltaTimeSeconds);
-    drone.yawAngle = glm::mix(drone.yawAngle, 0.0f,
-        stabilizationSpeed * deltaTimeSeconds);
+    glm::mat4 droneModelMatrix = glm::mat4(1);
+    droneModelMatrix = glm::translate(droneModelMatrix, drone.position);
+
+    // The angle mode uses stabilization to limit the angle of movements
+    // The acro mode allows the drone to rotate freely
+    if (controlMode == ANGLE)
+    {
+        float stabilizationSpeed = 6.0f;
+        drone.rollAngle = glm::mix(drone.rollAngle, 0.0f,
+                                   stabilizationSpeed * deltaTimeSeconds);
+        drone.pitchAngle = glm::mix(drone.pitchAngle, 0.0f,
+                                    stabilizationSpeed * deltaTimeSeconds);
+    }
+
+    // Correct rotation order: Yaw -> Pitch -> Roll;
+
+    // Apply Yaw rotation around global Y-axis
+    droneModelMatrix = glm::rotate(droneModelMatrix, drone.yawAngle,
+                                   glm::vec3(0, 1, 0));
+    // Apply Pitch rotation around x axis
+    droneModelMatrix = glm::rotate(droneModelMatrix, drone.pitchAngle,
+                                   glm::vec3(1, 0, 0));
+    // Apply Roll rotation around z axis
+    droneModelMatrix = glm::rotate(droneModelMatrix, drone.rollAngle,
+                                   glm::vec3(0, 0, 1));
+
+
+    // Reduce thrust
+    if (drone.thrust > 0)
+    {
+        drone.thrust -= drone.thrust * deltaTimeSeconds / 2;
+    }
+
+    // Apply gravity
+    drone.position.y -= drone.gravity * deltaTimeSeconds;
+
+    // Apply thrust in the direction of the drone's up vector
+    drone.position += drone.up * drone.thrust * deltaTimeSeconds;
 
     {
         glm::mat4 groundModelMatrix = glm::mat4(1);
         // Move the ground's center to (0, 0, 0)
         groundModelMatrix = glm::translate(groundModelMatrix,
-            glm::vec3(-ground.tileLength *
-                ground.nrTilesSide / 2,
-                0,
-                -ground.tileWidth *
-                ground.nrTilesSide / 2));
+                                           glm::vec3(-ground.tileLength *
+                                               ground.nrTilesSide / 2,
+                                               0,
+                                               -ground.tileWidth *
+                                               ground.nrTilesSide / 2));
+        // Use the terrain shader for rendering the ground
         RenderMesh(meshes["ground"], shaders["VertexColor"], groundModelMatrix);
     }
-
-    glm::mat4 droneModelMatrix = glm::mat4(1);
-    droneModelMatrix = glm::translate(droneModelMatrix, drone.position);
-    droneModelMatrix = glm::rotate(droneModelMatrix, drone.rollAngle,
-        glm::vec3(0, 0, 1));
-    droneModelMatrix = glm::rotate(droneModelMatrix, drone.pitchAngle,
-        glm::vec3(1, 0, 0));
-    droneModelMatrix = glm::rotate(droneModelMatrix, drone.yawAngle,
-        glm::vec3(0, 1, 0));
 
     {
         RenderMesh(meshes["body"], shaders["VertexColor"], droneModelMatrix);
@@ -534,11 +570,11 @@ void Tema2::Update(float deltaTimeSeconds)
     {
         glm::mat4 modelMatrix = droneModelMatrix;
         modelMatrix = glm::translate(modelMatrix,
-            glm::vec3(
-                (Drone::legLength - Drone::legWidth),
-                3 * Drone::legWidth, 0));
+                                     glm::vec3(
+                                         (Drone::legLength - Drone::legWidth),
+                                         3 * Drone::legWidth, 0));
         modelMatrix = glm::rotate(modelMatrix, drone.propellerAngle,
-            glm::vec3(0, 1, 0));
+                                  glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
     }
 
@@ -546,11 +582,11 @@ void Tema2::Update(float deltaTimeSeconds)
     {
         glm::mat4 modelMatrix = droneModelMatrix;
         modelMatrix = glm::translate(modelMatrix,
-            glm::vec3(
-                -(Drone::legLength - Drone::legWidth),
-                3 * Drone::legWidth, 0));
+                                     glm::vec3(
+                                         -(Drone::legLength - Drone::legWidth),
+                                         3 * Drone::legWidth, 0));
         modelMatrix = glm::rotate(modelMatrix, drone.propellerAngle,
-            glm::vec3(0, 1, 0));
+                                  glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
     }
 
@@ -558,11 +594,11 @@ void Tema2::Update(float deltaTimeSeconds)
     {
         glm::mat4 modelMatrix = droneModelMatrix;
         modelMatrix = glm::translate(modelMatrix,
-            glm::vec3(0, 3 * Drone::legWidth,
-                (Drone::legLength -
-                    Drone::legWidth)));
+                                     glm::vec3(0, 3 * Drone::legWidth,
+                                               (Drone::legLength -
+                                                   Drone::legWidth)));
         modelMatrix = glm::rotate(modelMatrix, drone.propellerAngle,
-            glm::vec3(0, 1, 0));
+                                  glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
     }
 
@@ -570,22 +606,12 @@ void Tema2::Update(float deltaTimeSeconds)
     {
         glm::mat4 modelMatrix = droneModelMatrix;
         modelMatrix = glm::translate(modelMatrix,
-            glm::vec3(0, 3 * Drone::legWidth,
-                -(Drone::legLength -
-                    Drone::legWidth)));
+                                     glm::vec3(0, 3 * Drone::legWidth,
+                                               -(Drone::legLength -
+                                                   Drone::legWidth)));
         modelMatrix = glm::rotate(modelMatrix, drone.propellerAngle,
-            glm::vec3(0, 1, 0));
+                                  glm::vec3(0, 1, 0));
         RenderMesh(meshes["propeller"], shaders["VertexColor"], modelMatrix);
-    }
-
-    // Render the camera target. This is useful for understanding where
-    // the rotation point is, when moving in third-person camera mode.
-    if (renderCameraTarget)
-    {
-        glm::mat4 modelMatrix = glm::mat4(1);
-        modelMatrix = glm::translate(modelMatrix, camera->GetTargetPosition());
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(0.1f));
-        RenderMesh(meshes["sphere"], shaders["VertexNormal"], modelMatrix);
     }
 
     // Draw trees using the saved model matrices
@@ -595,12 +621,34 @@ void Tema2::Update(float deltaTimeSeconds)
         // Draw the shapes that make up the tree
         RenderMesh(meshes["trunk"], shaders["VertexColor"], currentModelMatrix);
         currentModelMatrix = glm::translate(currentModelMatrix,
-            glm::vec3(0, Tree::trunkHeight, 0));
+                                            glm::vec3(0, Tree::trunkHeight, 0));
         RenderMesh(meshes["cone"], shaders["VertexColor"], currentModelMatrix);
         currentModelMatrix = glm::translate(currentModelMatrix,
-            glm::vec3(
-                0, Tree::coneHeight / 3, 0));
+                                            glm::vec3(
+                                                0, Tree::coneHeight / 3, 0));
         RenderMesh(meshes["cone"], shaders["VertexColor"], currentModelMatrix);
+    }
+
+    // Update camera based on the current mode
+    if (cameraMode == FIRST_PERSON)
+    {
+        // Set camera to drone's position and orientation
+        // Make it a bit higher than the drone so that the drone is visible
+
+        glm::vec3 cameraPosition = drone.position + glm::vec3(0, 0.5f, 0);
+        glm::vec3 cameraTarget = drone.position + drone.forward;
+        camera->Set(cameraPosition, cameraTarget, glm::vec3(0, 1, 0));
+    }
+    else if (cameraMode == THIRD_PERSON)
+    {
+        // Set camera behind and above the drone
+        float distance = 6.0f;
+        float height = 3.0f;
+
+        glm::vec3 cameraPosition = drone.position - drone.forward * distance +
+            glm::vec3(0, height, 0);
+        glm::vec3 cameraTarget = drone.position;
+        camera->Set(cameraPosition, cameraTarget, glm::vec3(0, 1, 0));
     }
 }
 
@@ -619,11 +667,11 @@ void Tema2::RenderMesh(Mesh* mesh, Shader* shader, const glm::mat4& modelMatrix)
     // Render an object using the specified shader and the specified position
     shader->Use();
     glUniformMatrix4fv(shader->loc_view_matrix, 1, GL_FALSE,
-        glm::value_ptr(camera->GetViewMatrix()));
+                       glm::value_ptr(camera->GetViewMatrix()));
     glUniformMatrix4fv(shader->loc_projection_matrix, 1, GL_FALSE,
-        glm::value_ptr(projectionMatrix));
+                       glm::value_ptr(projectionMatrix));
     glUniformMatrix4fv(shader->loc_model_matrix, 1, GL_FALSE,
-        glm::value_ptr(modelMatrix));
+                       glm::value_ptr(modelMatrix));
 
     mesh->Render();
 }
@@ -680,68 +728,55 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
 
         if (window->KeyHold(GLFW_KEY_W))
         {
-            drone.position.z -= deltaTime * speed;
-            drone.pitchAngle -= deltaTime * speed;
+            drone.position.z += deltaTime * speed * drone.forward.z;
+            drone.position.x += deltaTime * speed * drone.forward.x;
+
+            drone.pitchAngle += deltaTime * speed;
         }
         if (window->KeyHold(GLFW_KEY_S))
         {
-            drone.position.z += deltaTime * speed;
-            drone.pitchAngle += deltaTime * speed;
+            drone.position.z -= deltaTime * speed * drone.forward.z;
+            drone.position.x -= deltaTime * speed * drone.forward.x;
+
+            drone.pitchAngle -= deltaTime * speed;
         }
         if (window->KeyHold(GLFW_KEY_A))
         {
-            drone.position.x -= deltaTime * speed;
-            drone.rollAngle += deltaTime * speed;
+            drone.position.z -= deltaTime * speed * drone.right.z;
+            drone.position.x -= deltaTime * speed * drone.right.x;
+
+            drone.rollAngle -= deltaTime * speed;
         }
         if (window->KeyHold(GLFW_KEY_D))
         {
-            drone.position.x += deltaTime * speed;
-            drone.rollAngle -= deltaTime * speed;
+            drone.position.z += deltaTime * speed * drone.right.z;
+            drone.position.x += deltaTime * speed * drone.right.x;
+
+            drone.rollAngle += deltaTime * speed;
         }
-        if (window->KeyHold(GLFW_KEY_E))
+        if (window->KeyHold(GLFW_KEY_UP))
         {
-            drone.position.y += deltaTime * speed;
+            drone.thrust += deltaTime * speed * 3;
         }
-        if (window->KeyHold(GLFW_KEY_Q))
+        if (window->KeyHold(GLFW_KEY_DOWN))
         {
-            drone.position.y -= deltaTime * speed;
+            if (drone.thrust > 0)
+            {
+                drone.thrust -= deltaTime * speed * 2;
+            }
         }
         // Just change direction/yaw
-        if (window->KeyHold(GLFW_KEY_Z))
+        if (window->KeyHold(GLFW_KEY_LEFT))
         {
-            drone.yawAngle += deltaTime * speed;
+            drone.yawAngle += deltaTime * speed / 2;
+            drone.updateDirection();
         }
-        if (window->KeyHold(GLFW_KEY_X))
+
+        if (window->KeyHold(GLFW_KEY_RIGHT))
         {
-            drone.yawAngle -= deltaTime * speed;
+            drone.yawAngle -= deltaTime * speed / 2;
+            drone.updateDirection();
         }
-    }
-
-    if (window->KeyHold(GLFW_KEY_1))
-    {
-        projectionFov -= deltaTime * 10;
-    }
-    if (window->KeyHold(GLFW_KEY_2))
-    {
-        projectionFov += deltaTime * 10;
-    }
-
-    if (window->KeyHold(GLFW_KEY_3))
-    {
-        projectionWidth += 5 * deltaTime;
-    }
-    if (window->KeyHold(GLFW_KEY_4))
-    {
-        projectionWidth -= 5 * deltaTime;
-    }
-
-    if (window->KeyHold(GLFW_KEY_5))
-    {
-        projectionHeight += 5 * deltaTime;
-    }
-    if (window->KeyHold(GLFW_KEY_6))
-    {
-        projectionHeight -= 5 * deltaTime;
     }
 
     // TODO(student): Change projection parameters. Declare any extra
@@ -753,14 +788,28 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
 
 void Tema2::OnKeyPress(int key, int mods)
 {
-    // Add key press event
-    if (key == GLFW_KEY_T)
+    // Toggle camera mode when spacebar is pressed
+    if (key == GLFW_KEY_SPACE)
     {
-        renderCameraTarget = !renderCameraTarget;
+        if (cameraMode == FIRST_PERSON)
+            cameraMode = THIRD_PERSON;
+        else
+        {
+            cameraMode = FIRST_PERSON;
+        }
     }
-    // TODO(student): Switch projections
-    if (key == GLFW_KEY_O) orthoProjection = true;
-    else if (key == GLFW_KEY_P) orthoProjection = false;
+    // Toggle control mode for the drone
+    if (key == GLFW_KEY_M)
+    {
+       if (controlMode == ANGLE)
+       {
+           controlMode = ACRO;
+       }
+        else
+        {
+            controlMode = ANGLE;
+        }
+    }
 }
 
 
@@ -773,32 +822,6 @@ void Tema2::OnKeyRelease(int key, int mods)
 void Tema2::OnMouseMove(int mouseX, int mouseY, int deltaX, int deltaY)
 {
     // Add mouse move event
-
-    if (window->MouseHold(GLFW_MOUSE_BUTTON_RIGHT))
-    {
-        float sensivityOX = 0.001f;
-        float sensivityOY = 0.001f;
-
-        if (window->GetSpecialKeyState() == 0)
-        {
-            renderCameraTarget = false;
-            // TODO(student): Rotate the camera in first-person mode around
-            // OX and OY using `deltaX` and `deltaY`. Use the sensitivity
-            // variables for setting up the rotation speed.
-            camera->RotateFirstPerson_OX(-deltaY * sensivityOX);
-            camera->RotateFirstPerson_OY(-deltaX * sensivityOY);
-        }
-
-        if (window->GetSpecialKeyState() & GLFW_MOD_CONTROL)
-        {
-            renderCameraTarget = true;
-            // TODO(student): Rotate the camera in third-person mode around
-            // OX and OY using `deltaX` and `deltaY`. Use the sensitivity
-            // variables for setting up the rotation speed.
-            camera->RotateThirdPerson_OX(-deltaY * sensivityOX);
-            camera->RotateThirdPerson_OY(-deltaX * sensivityOY);
-        }
-    }
 }
 
 
@@ -815,8 +838,10 @@ void Tema2::OnMouseBtnRelease(int mouseX, int mouseY, int button, int mods)
 
 
 void Tema2::OnMouseScroll(int mouseX, int mouseY, int offsetX, int offsetY)
-{}
+{
+}
 
 
 void Tema2::OnWindowResize(int width, int height)
-{}
+{
+}

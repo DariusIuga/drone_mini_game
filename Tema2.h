@@ -15,6 +15,34 @@ public:
         this->pitchAngle = 0;
         this->rollAngle = 0;
         this->yawAngle = 0;
+
+        updateDirection();
+    }
+
+    void updateDirection()
+    {
+        updateForward();
+        updateRight();
+        updateUp();
+    }
+
+    void updateForward()
+    {
+        forward = glm::normalize(glm::vec3(
+            sin(yawAngle),
+            0,
+            cos(yawAngle)
+        ));
+    }
+
+    void updateRight()
+    {
+        right = glm::normalize(glm::vec3(-cos(yawAngle), 0, sin(yawAngle)));
+    }
+
+    void updateUp()
+    {
+        up = glm::normalize(glm::cross(right, forward));
     }
 
     // Position of the origin
@@ -32,6 +60,16 @@ public:
     float pitchAngle;
     float rollAngle;
     float yawAngle;
+
+    glm::vec3 forward;
+    glm::vec3 right;
+    glm::vec3 up;
+
+    // Gravity
+    constexpr static float gravity = 10;
+
+    // Thrust force applied in the upward direction (starts at 0)
+    float thrust = 0;
 
     constexpr static double boundingSphereRadius = legLength;
 };
@@ -63,7 +101,8 @@ public:
     {
         boundingBox = AABB(position + glm::vec3(-trunkRadius, 0, -trunkRadius),
             position + glm::vec3(trunkRadius,
-                trunkHeight + coneHeight * 4 / 3,
+                trunkHeight + coneHeight * 4 /
+                3,
                 trunkRadius));
     }
 
@@ -94,7 +133,8 @@ public:
     {
         boundingBox = AABB(position + glm::vec3(-trunkRadius, 0, -trunkRadius),
             position + glm::vec3(trunkRadius,
-                trunkHeight + coneHeight * 4 / 3,
+                trunkHeight + coneHeight * 4 /
+                3,
                 trunkRadius));
     }
 
@@ -216,9 +256,9 @@ namespace m1
             }
 
             // Put an invisible ceiling for good measure
-            if (drone.position.y > 20)
+            if (drone.position.y > 50)
             {
-                drone.position.y = 20;
+                drone.position.y = 50;
             }
         }
 
@@ -234,5 +274,13 @@ namespace m1
         Ground ground;
         Drone drone;
         Tree tree;
+
+        enum CameraMode { FIRST_PERSON, THIRD_PERSON };
+
+        CameraMode cameraMode; // Tracks the current camera mode
+
+        // Mode of drone control
+        enum ControlMode { ANGLE, ACRO };
+        ControlMode controlMode = ANGLE;
     };
 } // namespace m1
